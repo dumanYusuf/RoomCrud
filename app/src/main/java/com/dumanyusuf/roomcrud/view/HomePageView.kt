@@ -45,29 +45,28 @@ fun HomePageView(
     viewModel: UserViewModel,
 ) {
 
-    val isAllerDiologShow = remember { mutableStateOf(false) }
-    val userName= remember { mutableStateOf("") }
-    val userLastName= remember { mutableStateOf("") }
-    val userPhone= remember { mutableStateOf("") }
-    val search= remember { mutableStateOf("") }
-
-
-
-
+    val isAlertDialogShow = remember { mutableStateOf(false) }
+    val userName = remember { mutableStateOf("") }
+    val userLastName = remember { mutableStateOf("") }
+    val userPhone = remember { mutableStateOf("") }
+    val search = remember { mutableStateOf("") }
+    val selectedUser = remember { mutableStateOf<User?>(null) }  // Seçilen kullanıcı
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row (modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween){
-
-                        OutlinedTextField(
-                            value =search.value,
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TextField(
+                            value = search.value,
                             onValueChange = {
-                                search.value=it
+                                search.value = it
                                 viewModel.searchUser(it)
-
-                                            },
+                            },
                             maxLines = 1,
                             label = { Text(text = "kişi ara") },
                             modifier = Modifier.padding(10.dp).fillMaxWidth(),
@@ -75,9 +74,9 @@ fun HomePageView(
                                 Icon(painter = painterResource(R.drawable.search), contentDescription = "")
                             },
                             trailingIcon = {
-                                if (search.value.isNotEmpty()){
+                                if (search.value.isNotEmpty()) {
                                     IconButton(onClick = {
-                                        search.value=""
+                                        search.value = ""
                                         viewModel.getUser()
                                     }) {
                                         Icon(painter = painterResource(R.drawable.delete), contentDescription = "")
@@ -90,41 +89,45 @@ fun HomePageView(
             )
         },
         content = {
-            Column (modifier = Modifier.fillMaxSize().padding(it)){
-                LazyColumn (modifier = Modifier.fillMaxSize()){
-                    items(viewModel.itemList.value){user->
-                        UserCard(user = user,viewModel)
+            Column(modifier = Modifier.fillMaxSize().padding(it)) {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(viewModel.itemList.value) { user ->
+                        UserCard(user = user, viewModel = viewModel, onEditClick = {
+                            // Seçilen kullanıcıyı edit işlemine alıyoruz
+                            selectedUser.value = user
+                            userName.value = user.userName
+                            userLastName.value = user.userLastname
+                            userPhone.value = user.userPhone?.toString() ?: ""
+                            isAlertDialogShow.value = true
+                        })
                     }
                 }
             }
-
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    // alertDialog
-                    isAllerDiologShow.value=true
+                    // Yeni kullanıcı eklemek için
+                    isAlertDialogShow.value = true
                 }
             ) {
                 Icon(painter = painterResource(R.drawable.add), contentDescription = "")
             }
 
-            if (isAllerDiologShow.value) {
+            if (isAlertDialogShow.value) {
                 AlertDialog(
                     onDismissRequest = {
-                        isAllerDiologShow.value = true
+                        isAlertDialogShow.value = false
                     },
-                    title = { Text(text = "Kişi Kaydet") },
+                    title = { Text(text = if (selectedUser.value == null) "Kişi Kaydet" else "Kişi Düzenle") },
                     text = {
                         Column {
                             // 1. TextField
                             TextField(
                                 value = userName.value,
-                                onValueChange = { userName.value = it
-                                                },
+                                onValueChange = { userName.value = it },
                                 label = { Text("Ad") },
                                 modifier = Modifier.fillMaxWidth()
-
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -132,8 +135,7 @@ fun HomePageView(
                             // 2. TextField
                             TextField(
                                 value = userLastName.value,
-                                onValueChange = { userLastName.value = it
-                                                },
+                                onValueChange = { userLastName.value = it },
                                 label = { Text("Soyad") },
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -143,8 +145,7 @@ fun HomePageView(
                             // 3. TextField
                             TextField(
                                 value = userPhone.value,
-                                onValueChange = { userPhone.value = it
-                                                },
+                                onValueChange = { userPhone.value = it },
                                 label = { Text("Telefon") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                                 modifier = Modifier.fillMaxWidth()
@@ -154,12 +155,21 @@ fun HomePageView(
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                val user=User(userName.value,userLastName.value,userPhone.value.toIntOrNull())
-                                viewModel.saveUser(user)
-                                isAllerDiologShow.value = false
-                                userName.value=""
-                                userLastName.value=""
-                                userPhone.value=""
+                                val user = User(
+                                    userName.value,
+                                    userLastName.value,
+                                    userPhone.value.toIntOrNull()
+                                )
+                                if (selectedUser.value == null) {
+                                    viewModel.saveUser(user)
+                                } else {
+                                    user.id = selectedUser.value?.id
+                                    viewModel.updateUser(user)
+                                }
+                                isAlertDialogShow.value = false
+                                userName.value = ""
+                                userLastName.value = ""
+                                userPhone.value = ""
                             }
                         ) {
                             Text("Kaydet")
@@ -168,7 +178,7 @@ fun HomePageView(
                     dismissButton = {
                         TextButton(
                             onClick = {
-                                isAllerDiologShow.value = false
+                                isAlertDialogShow.value = false
                             }
                         ) {
                             Text("İptal")
@@ -176,50 +186,38 @@ fun HomePageView(
                     }
                 )
             }
-
-
         }
-
-
     )
-
-
 }
 
 @Composable
-fun UserCard(user: User,viewModel: UserViewModel) {
-
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(10.dp).size(80.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row (
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
-                ){
-                    Text(text = "Ad: ${user.userName}")
-                    Icon(
-                        modifier = Modifier.clickable {
-                            viewModel.deleteUser(user)
-
-                        },
-                        painter = painterResource(R.drawable.delete), contentDescription = "")
-                }
-                Row (
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
-                ){
-                    Text(text = "Soyad: ${user.userLastname}")
-                    Icon(
-                        modifier = Modifier.clickable {
-                            // burda hangi kullanıcının edit butonuna bastıysam o kullanıcın verileri alerdialogda cıksın ve ve update fonl calıstırabileyim
-
-
-                        },
-                        painter = painterResource(R.drawable.edit), contentDescription = "")
-                }
-               // Text(text = "Telefon: ${user.userPhone?: "Belirtilmemiş"}")
+fun UserCard(user: User, viewModel: UserViewModel, onEditClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(10.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Ad: ${user.userName}")
+                Icon(
+                    modifier = Modifier.clickable {
+                        viewModel.deleteUser(user)
+                    },
+                    painter = painterResource(R.drawable.delete), contentDescription = "")
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Soyad: ${user.userLastname}")
+                Icon(
+                    modifier = Modifier.clickable {
+                        onEditClick()
+                    },
+                    painter = painterResource(R.drawable.edit), contentDescription = "")
             }
         }
-
+    }
 }

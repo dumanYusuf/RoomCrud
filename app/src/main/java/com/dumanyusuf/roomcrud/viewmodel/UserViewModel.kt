@@ -23,10 +23,11 @@ class UserViewModel (application: Application):AndroidViewModel(application) {
     val itemList = mutableStateOf<List<User>>(listOf())
 
 
-
     init {
         getUser()
     }
+
+
 
     fun getUser(){
         viewModelScope.launch(Dispatchers.IO) {
@@ -55,7 +56,7 @@ class UserViewModel (application: Application):AndroidViewModel(application) {
     fun updateUser(user: User){
         viewModelScope.launch (Dispatchers.IO){
             userDao.update(user)
-
+            getUser()
         }
     }
 
