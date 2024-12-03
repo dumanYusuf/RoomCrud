@@ -22,6 +22,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -29,14 +33,18 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dumanyusuf.roomcrud.R
 import com.dumanyusuf.roomcrud.model.User
 import com.dumanyusuf.roomcrud.viewmodel.UserViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -50,9 +58,24 @@ fun HomePageView(
     val userLastName = remember { mutableStateOf("") }
     val userPhone = remember { mutableStateOf("") }
     val search = remember { mutableStateOf("") }
-    val selectedUser = remember { mutableStateOf<User?>(null) }  // Seçilen kullanıcı
+    val selectedUser = remember { mutableStateOf<User?>(null) }
+
+    val snakbarHostState= remember { SnackbarHostState() }
+    val scope= rememberCoroutineScope()
+
 
     Scaffold(
+        snackbarHost = {
+          SnackbarHost(hostState =snakbarHostState ){
+              Snackbar (
+                  snackbarData = it,
+                  contentColor = Color.White,
+                  containerColor = Color.Blue,
+                  actionColor = Color.White
+              )
+          }
+        },
+
         topBar = {
             TopAppBar(
                 title = {
@@ -99,7 +122,7 @@ fun HomePageView(
                             userLastName.value = user.userLastname
                             userPhone.value = user.userPhone?.toString() ?: ""
                             isAlertDialogShow.value = true
-                        })
+                        },scope,snakbarHostState)
                     }
                 }
             }
@@ -191,7 +214,8 @@ fun HomePageView(
 }
 
 @Composable
-fun UserCard(user: User, viewModel: UserViewModel, onEditClick: () -> Unit) {
+fun UserCard(user: User, viewModel: UserViewModel, onEditClick: () -> Unit,scope:CoroutineScope,snakbarHostState:SnackbarHostState) {
+
     Card(
         modifier = Modifier.fillMaxWidth().padding(10.dp)
     ) {
@@ -203,7 +227,18 @@ fun UserCard(user: User, viewModel: UserViewModel, onEditClick: () -> Unit) {
                 Text(text = "Ad: ${user.userName}")
                 Icon(
                     modifier = Modifier.clickable {
-                        viewModel.deleteUser(user)
+                       scope.launch {
+                           val sb= snakbarHostState.showSnackbar("${user.userName} silinsin mi?", actionLabel = "Evet")
+                           if (sb==SnackbarResult.ActionPerformed){
+                               viewModel.deleteUser(user)
+                               scope.launch {
+                                   snakbarHostState.showSnackbar("silindi")
+                               }
+
+
+                           }
+                        }
+
                     },
                     painter = painterResource(R.drawable.delete), contentDescription = "")
             }
